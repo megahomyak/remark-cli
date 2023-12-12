@@ -174,9 +174,9 @@ dependencies = [
 
 [[package]]
 name = "remarklib"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afdd5da13dff2d927af15cc362aea89e3fe10f5176cbcdaf2cf7329a822c361d"
+checksum = "53253c8dc97180b3d1867000be5ab76f5040875f36b98763c091f4db452a651b"
 dependencies = [
  "function_string_builder",
  "regex",

@@ -11,5 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 regex = "1.10.2"
-remarklib = "0.1.0"
+remarklib = "0.2.0"
 rustyline = "13.0.0"

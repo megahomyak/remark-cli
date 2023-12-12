@@ -2,49 +2,67 @@ use regex::Regex;
 use remarklib::{ExecutionContext, ReplacementResult, Rule};
 use rustyline::error::ReadlineError;
 
-enum LineReadResult {
-    UserExited,
-    Success(String),
+fn builtin(
+    pattern: &str,
+    replacer: impl Fn(&regex::Captures) -> ReplacementResult + 'static,
+) -> Rule {
+    Rule::Builtin {
+        pattern: Regex::new(pattern).unwrap(),
+        replacer: Box::new(replacer),
+    }
+}
+
+fn get<'a>(captures: &'a regex::Captures, index: usize) -> &'a str {
+    captures.get(index).unwrap().as_str()
 }
 
 fn main() {
     let mut editor = rustyline::DefaultEditor::new().unwrap();
-    let mut request_line = || match editor.readline(">>> ") {
-        Ok(line) => {
-            editor.add_history_entry(&line).expect("could not add a history entry");
-            LineReadResult::Success(line)
-        }
-        Err(ReadlineError::Eof | ReadlineError::Interrupted) => LineReadResult::UserExited,
-        Err(other_error) => panic!("{}", other_error),
-    };
-    let first_line = match request_line() {
-        LineReadResult::Success(line) => line,
-        LineReadResult::UserExited => return,
-    };
     let mut execution_context = ExecutionContext {
-        rules: [Rule::Builtin {
-            pattern: Regex::new(r"\(define (.+);(.+)\)").unwrap(),
-            replacer: Box::new(|captures: &regex::Captures| {
-                let pattern = captures.get(1).unwrap().as_str();
-                let replacement = captures.get(2).unwrap().as_str();
-                ReplacementResult {
-                    substitution: "".into(),
-                    new_rule: Some(Rule::Regex {
-                        pattern: Regex::new(pattern).unwrap(),
-                        replacement: replacement.into(),
-                    }),
+        rules: [
+            builtin(r"\(define (.+);(.+)\)", |captures| {
+                let pattern = get(captures, 1);
+                let replacement = get(captures, 2);
+                match Regex::new(pattern) {
+                    Ok(pattern) => ReplacementResult {
+                        substitution: "".into(),
+                        new_rule: Some(Rule::Regex {
+                            pattern,
+                            replacement: replacement.into(),
+                        }),
+                    },
+                    Err(error) => ReplacementResult {
+                        substitution: format!("{{REGEX ERROR: {}}}", error),
+                        new_rule: None,
+                    },
                 }
             }),
-        }]
+            builtin(r"\((\d+) \- (\d+)\)", |captures| {
+                let minuend: isize = get(captures, 1).parse().unwrap();
+                let subtrahend: isize = get(captures, 2).parse().unwrap();
+                ReplacementResult {
+                    substitution: format!("{}", minuend - subtrahend),
+                    new_rule: None,
+                }
+            }),
+        ]
         .into(),
-        program: first_line,
     };
+    let mut program;
     loop {
-        remarklib::execute(&mut execution_context);
-        println!("{}", execution_context.program);
-        execution_context.program = match request_line() {
-            LineReadResult::Success(line) => line,
-            LineReadResult::UserExited => break,
+        program = match editor.readline(">>> ") {
+            Ok(line) => {
+                editor
+                    .add_history_entry(&line)
+                    .expect("could not add a history entry");
+                line
+            }
+            Err(ReadlineError::Eof | ReadlineError::Interrupted) => break,
+            Err(other_error) => panic!("{}", other_error),
+        };
+        program = remarklib::execute(&mut execution_context, program);
+        if !program.is_empty() {
+            println!("{}", program);
         }
     }
 }
