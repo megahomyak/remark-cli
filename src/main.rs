@@ -1,22 +1,26 @@
-use std::io::Write;
-
 use regex::Regex;
 use remarklib::{ExecutionContext, ReplacementResult, Rule};
+use rustyline::error::ReadlineError;
 
-fn request_line() -> String {
-    let mut input = String::new();
-    print!(">>> ");
-    std::io::stdout().flush().expect("could not flush stdout");
-    std::io::stdin()
-        .read_line(&mut input)
-        .expect("could not read a line from the input");
-    match input.strip_suffix("\n") {
-        None => input,
-        Some(stripped_input) => stripped_input.into(),
-    }
+enum LineReadResult {
+    UserExited,
+    Success(String),
 }
 
 fn main() {
+    let mut editor = rustyline::DefaultEditor::new().unwrap();
+    let mut request_line = || match editor.readline(">>> ") {
+        Ok(line) => {
+            editor.add_history_entry(&line).expect("could not add a history entry");
+            LineReadResult::Success(line)
+        }
+        Err(ReadlineError::Eof | ReadlineError::Interrupted) => LineReadResult::UserExited,
+        Err(other_error) => panic!("{}", other_error),
+    };
+    let first_line = match request_line() {
+        LineReadResult::Success(line) => line,
+        LineReadResult::UserExited => return,
+    };
     let mut execution_context = ExecutionContext {
         rules: [Rule::Builtin {
             pattern: Regex::new(r"\(define (.+);(.+)\)").unwrap(),
@@ -33,11 +37,14 @@ fn main() {
             }),
         }]
         .into(),
-        program: request_line(),
+        program: first_line,
     };
     loop {
         remarklib::execute(&mut execution_context);
         println!("{}", execution_context.program);
-        execution_context.program = request_line();
+        execution_context.program = match request_line() {
+            LineReadResult::Success(line) => line,
+            LineReadResult::UserExited => break,
+        }
     }
 }
