@@ -1,0 +1,15 @@
+[package]
+name = "remark-interpreter"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "remark"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+regex = "1.10.2"
+remarklib = "0.1.0"
+rustyline = "13.0.0"
