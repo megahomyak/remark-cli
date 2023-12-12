@@ -2,6 +2,9 @@
 name = "remark-interpreter"
 version = "0.1.0"
 edition = "2021"
+description = "An interpreter for the Remark programming language"
+homepage = "https://github.com/megahomyak/remark-interpreter"
+license = "MIT"
 
 [[bin]]
 name = "remark"
